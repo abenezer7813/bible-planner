@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useBibleStore } from "@/lib/store";
 
 export default function SettingsPage() {
@@ -12,45 +13,11 @@ export default function SettingsPage() {
     authBusy,
     userEmail,
     cloudError,
-    signIn,
-    signUp,
     signOut,
   } = useBibleStore();
   const nameInput = useRef<HTMLInputElement>(null);
   const [confirmReset, setConfirmReset] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-in");
-  const [authMessage, setAuthMessage] = useState("");
-  const [authMessageIsError, setAuthMessageIsError] = useState(false);
-
-  async function submitAuth(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setAuthMessage("");
-    setAuthMessageIsError(false);
-
-    if (authMode === "sign-in") {
-      const error = await signIn(email.trim(), password);
-      if (error) {
-        setAuthMessage(error);
-        setAuthMessageIsError(true);
-      } else {
-        setAuthMessage("Signed in. Your reading progress is syncing.");
-      }
-      return;
-    }
-
-    const result = await signUp(email.trim(), password);
-    if (result.error) {
-      setAuthMessage(result.error);
-      setAuthMessageIsError(true);
-    } else if (result.confirmationRequired) {
-      setAuthMessage("Check your email to confirm your account, then sign in.");
-      setAuthMode("sign-in");
-    } else {
-      setAuthMessage("Account created. Your reading progress is syncing.");
-    }
-  }
+  const [accountMessage, setAccountMessage] = useState("");
 
   return (
     <div className="flex flex-col gap-6 max-w-lg">
@@ -77,81 +44,31 @@ export default function SettingsPage() {
             <button
               type="button"
               onClick={async () => {
-                const error = await signOut();
-                setAuthMessage(error ?? "Signed out.");
-                setAuthMessageIsError(Boolean(error));
+                setAccountMessage(await signOut() ?? "");
               }}
               disabled={authBusy}
               className="self-start px-4 py-2 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--ink)] disabled:opacity-50"
             >
               {authBusy ? "Please wait…" : "Sign out"}
             </button>
+            {accountMessage && <p role="status" className="text-sm text-red-700">{accountMessage}</p>}
           </div>
         ) : (
-          <>
-            <div className="flex gap-1 mt-3 border-b border-[var(--border)]" role="tablist" aria-label="Account access">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={authMode === "sign-in"}
-                onClick={() => { setAuthMode("sign-in"); setAuthMessage(""); }}
-                className={`px-3 py-2 text-sm font-medium border-b-2 ${authMode === "sign-in" ? "border-[var(--green)] text-[var(--green-dark)]" : "border-transparent text-[var(--ink-soft)]"}`}
-              >
-                Sign in
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={authMode === "sign-up"}
-                onClick={() => { setAuthMode("sign-up"); setAuthMessage(""); }}
-                className={`px-3 py-2 text-sm font-medium border-b-2 ${authMode === "sign-up" ? "border-[var(--green)] text-[var(--green-dark)]" : "border-transparent text-[var(--ink-soft)]"}`}
-              >
-                Create account
-              </button>
+          <div className="mt-3">
+            <p className="text-sm text-[var(--ink-soft)]">
+              You&rsquo;re using a guest profile. Your reading progress stays in this browser until you sign in.
+            </p>
+            <div className="flex flex-wrap gap-4 mt-3 text-sm font-semibold text-[var(--green-dark)]">
+              <Link href="/login" className="underline underline-offset-2">Sign in</Link>
+              <Link href="/signup" className="underline underline-offset-2">Create account</Link>
             </div>
-            <form onSubmit={submitAuth} className="flex flex-col gap-3 mt-4">
-              <label className="text-xs uppercase tracking-wide text-[var(--ink-faint)]" htmlFor="account-email">Email</label>
-              <input
-                id="account-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm outline-none focus:border-[var(--green)]"
-              />
-              <label className="text-xs uppercase tracking-wide text-[var(--ink-faint)]" htmlFor="account-password">Password</label>
-              <input
-                id="account-password"
-                type="password"
-                autoComplete={authMode === "sign-in" ? "current-password" : "new-password"}
-                minLength={8}
-                required
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm outline-none focus:border-[var(--green)]"
-              />
-              <button
-                type="submit"
-                disabled={authBusy}
-                className="self-start px-4 py-2 rounded-xl bg-[var(--green)] text-[#f6f2e9] text-sm font-semibold disabled:opacity-50"
-              >
-                {authBusy ? "Please wait…" : authMode === "sign-in" ? "Sign in" : "Create account"}
-              </button>
-            </form>
-            {authMessage && (
-              <p role="status" className={`text-sm mt-3 ${authMessageIsError ? "text-red-700" : "text-[var(--green-dark)]"}`}>
-                {authMessage}
-              </p>
-            )}
-            {cloudError && <p role="status" className="text-sm text-red-700 mt-2">{cloudError}</p>}
-          </>
+          </div>
         )}
       </div>
 
       <div className="card p-5">
         <div className="font-semibold text-[var(--ink)] mb-3">Profile</div>
-        <label className="text-xs uppercase tracking-wide text-[var(--ink-faint)]">Display name</label>
+        <label htmlFor="display-name" className="text-xs uppercase tracking-wide text-[var(--ink-faint)]">Display name</label>
         <div className="flex gap-2 mt-1.5">
           <input
             id="display-name"
@@ -161,6 +78,7 @@ export default function SettingsPage() {
             className="flex-1 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm outline-none focus:border-[var(--green)]"
           />
           <button
+            type="button"
             onClick={() => setUserName(nameInput.current?.value.trim() || "Reader")}
             className="px-4 py-2 rounded-xl bg-[var(--green)] text-[#f6f2e9] text-sm font-semibold"
           >
@@ -172,7 +90,7 @@ export default function SettingsPage() {
       <div className="card p-5">
         <div className="font-semibold text-[var(--ink)] mb-1">Reset progress</div>
         <p className="text-sm text-[var(--ink-soft)] mb-3">
-          Clears every completed reading, streak, and stat stored in this browser. This can&rsquo;t be undone.
+          Clears every completed reading, streak, and stat for {userEmail ? "this account" : "this browser"}. This can&rsquo;t be undone.
         </p>
         {confirmReset ? (
           <div className="flex gap-2">

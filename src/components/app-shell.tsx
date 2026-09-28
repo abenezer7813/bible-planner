@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   LayoutDashboard,
@@ -10,6 +10,7 @@ import {
   Settings,
   Bell,
 } from "lucide-react";
+import { useState } from "react";
 import { useBibleStore } from "@/lib/store";
 
 const NAV = [
@@ -27,12 +28,17 @@ function sectionLabel(pathname: string) {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { state, hydrated } = useBibleStore();
+  const router = useRouter();
+  const { state, hydrated, userEmail, signOut, authBusy } = useBibleStore();
+  const [signOutError, setSignOutError] = useState("");
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "short",
     day: "numeric",
   });
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
+
+  if (isAuthPage) return <>{children}</>;
 
   if (!hydrated) {
     return (
@@ -77,7 +83,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="mt-auto px-2 text-xs text-[var(--ink-faint)]">
-          Signed in as {state.userName}
+          {userEmail ? `Signed in as ${state.userName}` : "Guest profile"}
         </div>
       </aside>
 
@@ -107,9 +113,54 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <Bell size={16} className="text-[var(--ink-soft)]" />
               <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[var(--amber)]" />
             </button>
-            <div className="w-9 h-9 rounded-full bg-[var(--green-soft)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold text-[var(--green-dark)]">
-              {state.userName.slice(0, 1)}
-            </div>
+            <details className="relative">
+              <summary
+                aria-label="Open account menu"
+                title="Account menu"
+                className="list-none cursor-pointer w-9 h-9 rounded-full bg-[var(--green-soft)] border border-[var(--border)] flex items-center justify-center text-sm font-semibold text-[var(--green-dark)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--green)]"
+              >
+                {state.userName.slice(0, 1).toUpperCase()}
+              </summary>
+              <div className="absolute right-0 top-full mt-2 w-64 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-3 shadow-lg z-30">
+                <div className="px-2 py-2 border-b border-[var(--border)]">
+                  <div className="text-sm font-semibold text-[var(--ink)]">{state.userName}</div>
+                  <div className="text-xs text-[var(--ink-soft)] mt-0.5">
+                    {userEmail ?? "Guest profile · saved in this browser"}
+                  </div>
+                </div>
+                <Link
+                  href="/settings"
+                  className="block rounded-lg px-2 py-2.5 mt-1 text-sm text-[var(--ink)] hover:bg-[var(--surface-soft)]"
+                >
+                  Profile and settings
+                </Link>
+                {userEmail ? (
+                  <button
+                    type="button"
+                    disabled={authBusy}
+                    onClick={async () => {
+                      const error = await signOut();
+                      if (error) {
+                        setSignOutError(error);
+                        return;
+                      }
+                      router.replace("/login");
+                    }}
+                    className="w-full text-left rounded-lg px-2 py-2.5 text-sm text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    {authBusy ? "Signing out…" : "Sign out"}
+                  </button>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="block rounded-lg px-2 py-2.5 text-sm font-semibold text-[var(--green-dark)] hover:bg-[var(--surface-soft)]"
+                  >
+                    Sign in to sync
+                  </Link>
+                )}
+                {signOutError && <p role="alert" className="px-2 pt-2 text-xs text-red-700">{signOutError}</p>}
+              </div>
+            </details>
           </div>
         </header>
 
