@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import ConfirmationModal from "@/components/confirmation-modal";
 import { useBibleStore } from "@/lib/store";
 
 export default function SettingsPage() {
@@ -92,33 +93,23 @@ export default function SettingsPage() {
         <p className="text-sm text-[var(--ink-soft)] mb-3">
           Clears every completed reading, streak, and stat for {userEmail ? "this account" : "this browser"}. This can&rsquo;t be undone.
         </p>
-        {confirmReset ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                resetProgress();
-                setConfirmReset(false);
-              }}
-              className="px-4 py-2 rounded-xl bg-red-700 text-white text-sm font-semibold"
-            >
-              Yes, reset everything
-            </button>
-            <button
-              onClick={() => setConfirmReset(false)}
-              className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--ink-soft)]"
-            >
-              Cancel
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmReset(true)}
-            className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--ink)]"
-          >
-            Reset progress
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setConfirmReset(true)}
+          className="px-4 py-2 rounded-xl border border-[var(--border)] text-sm font-semibold text-[var(--ink)]"
+        >
+          Reset progress
+        </button>
       </div>
+
+      <ConfirmationModal
+        open={confirmReset}
+        title="Reset reading progress?"
+        description={`This permanently clears all completed readings and resets your stats for ${userEmail ? "this account" : "this browser"}. This can’t be undone.`}
+        confirmLabel="Reset progress"
+        onConfirm={resetProgress}
+        onCancel={() => setConfirmReset(false)}
+      />
 
       <div className="text-xs text-[var(--ink-faint)]">
         {userEmail ? "Your account data is synced to Supabase and cached in this browser." : "Without an account, data stays in this browser only."}

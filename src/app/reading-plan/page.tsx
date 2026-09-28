@@ -10,6 +10,7 @@ import {
   type PlanId,
 } from "@/lib/bible-data";
 import ProgressBar from "@/components/progress-bar";
+import ConfirmationModal from "@/components/confirmation-modal";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 
 export default function ReadingPlanPage() {
@@ -32,6 +33,7 @@ function ReadingPlanContent({ store }: { store: ReturnType<typeof useBibleStore>
   const [selectedPlan, setSelectedPlan] = useState<PlanId>(state.planId);
   const [customGoal, setCustomGoal] = useState<CustomGoal>(state.customGoal);
   const [chaptersPerDay, setChaptersPerDay] = useState(state.chaptersPerDay);
+  const [confirmStart, setConfirmStart] = useState(false);
 
   const days = useMemo(() => {
     const start = (week - 1) * 7 + 1;
@@ -46,6 +48,14 @@ function ReadingPlanContent({ store }: { store: ReturnType<typeof useBibleStore>
     selectedPlan !== state.planId ||
     customGoal !== state.customGoal ||
     chaptersPerDay !== state.chaptersPerDay;
+
+  function startSelectedPlan() {
+    startPlan(
+      selectedPlan,
+      selectedPlan === "custom" ? customGoal : "chapters",
+      selectedPlan === "custom" ? chaptersPerDay || DEFAULT_CUSTOM_CHAPTERS : chaptersPerDay
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -121,13 +131,7 @@ function ReadingPlanContent({ store }: { store: ReturnType<typeof useBibleStore>
           Starting or restarting a plan clears its reading checklist and sets its start date to today.
         </p>
         <button
-          onClick={() =>
-            startPlan(
-              selectedPlan,
-              selectedPlan === "custom" ? customGoal : "chapters",
-              selectedPlan === "custom" ? chaptersPerDay || DEFAULT_CUSTOM_CHAPTERS : chaptersPerDay
-            )
-          }
+          onClick={() => setConfirmStart(true)}
           className="mt-3 px-4 py-2.5 rounded-xl bg-[var(--green)] text-[#f6f2e9] text-sm font-semibold"
         >
           {hasCustomChanges ? "Start selected plan" : "Restart current plan"}
@@ -249,6 +253,15 @@ function ReadingPlanContent({ store }: { store: ReturnType<typeof useBibleStore>
           })}
         </div>
       </div>
+
+      <ConfirmationModal
+        open={confirmStart}
+        title={hasCustomChanges ? "Start this reading plan?" : "Restart your reading plan?"}
+        description="This resets your start date to today and clears every completed reading in your checklist. This can’t be undone."
+        confirmLabel={hasCustomChanges ? "Start plan" : "Restart plan"}
+        onConfirm={startSelectedPlan}
+        onCancel={() => setConfirmStart(false)}
+      />
     </div>
   );
 }

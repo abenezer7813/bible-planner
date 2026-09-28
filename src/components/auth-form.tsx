@@ -13,8 +13,10 @@ type AuthFormProps = {
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const { hydrated, authEnabled, authBusy, userEmail, signIn, signUp } = useBibleStore();
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
   const isLogin = mode === "login";
@@ -39,7 +41,18 @@ export default function AuthForm({ mode }: AuthFormProps) {
       return;
     }
 
-    const result = await signUp(email.trim(), password);
+    if (displayName.trim().length < 2) {
+      setMessage("Enter a name with at least 2 characters.");
+      setIsError(true);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
+      setIsError(true);
+      return;
+    }
+
+    const result = await signUp(displayName.trim(), email.trim(), password);
     if (result.error) {
       setMessage(result.error);
       setIsError(true);
@@ -78,6 +91,24 @@ export default function AuthForm({ mode }: AuthFormProps) {
             </p>
           ) : (
             <form onSubmit={submit} className="flex flex-col gap-3">
+              {!isLogin && (
+                <>
+                  <label htmlFor="auth-name" className="text-xs uppercase tracking-wide text-[var(--ink-faint)]">
+                    Full name
+                  </label>
+                  <input
+                    id="auth-name"
+                    type="text"
+                    autoComplete="name"
+                    minLength={2}
+                    maxLength={80}
+                    required
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value)}
+                    className="px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm outline-none focus:border-[var(--green)]"
+                  />
+                </>
+              )}
               <label htmlFor="auth-email" className="text-xs uppercase tracking-wide text-[var(--ink-faint)]">
                 Email
               </label>
@@ -103,6 +134,23 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 onChange={(event) => setPassword(event.target.value)}
                 className="px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm outline-none focus:border-[var(--green)]"
               />
+              {!isLogin && (
+                <>
+                  <label htmlFor="auth-confirm-password" className="text-xs uppercase tracking-wide text-[var(--ink-faint)] mt-1">
+                    Confirm password
+                  </label>
+                  <input
+                    id="auth-confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={8}
+                    required
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm outline-none focus:border-[var(--green)]"
+                  />
+                </>
+              )}
               {message && (
                 <p role="status" className={`text-sm ${isError ? "text-red-700" : "text-[var(--green-dark)]"}`}>
                   {message}

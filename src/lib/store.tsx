@@ -243,7 +243,7 @@ type Ctx = {
   userEmail: string | null;
   cloudError: string | null;
   signIn: (email: string, password: string) => Promise<string | null>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null; confirmationRequired: boolean }>;
+  signUp: (displayName: string, email: string, password: string) => Promise<{ error: string | null; confirmationRequired: boolean }>;
   signOut: () => Promise<string | null>;
   toggleSlot: (day: number, slot: Slot) => void;
   setSlot: (day: number, slot: Slot, value: boolean) => void;
@@ -272,7 +272,11 @@ export function BibleStoreProvider({ children }: { children: React.ReactNode }) 
   const [authBusy, setAuthBusy] = useState(false);
   const [cloudError, setCloudError] = useState<string | null>(null);
 
-  const loadAccount = useCallback(async (user: { id: string; email?: string }) => {
+  const loadAccount = useCallback(async (user: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  }) => {
     const client = getSupabaseClient();
     if (!client) return;
 
@@ -300,6 +304,10 @@ export function BibleStoreProvider({ children }: { children: React.ReactNode }) 
             ? STORAGE_KEY
             : userKey;
         nextState = loadState(sourceKey);
+        const accountName = user.user_metadata?.display_name;
+        if (nextState.userName === "Reader" && typeof accountName === "string" && accountName.trim()) {
+          nextState = { ...nextState, userName: accountName.trim() };
+        }
       }
 
       setState(nextState);
@@ -388,7 +396,7 @@ export function BibleStoreProvider({ children }: { children: React.ReactNode }) 
     }
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (displayName: string, email: string, password: string) => {
     const client = getSupabaseClient();
     if (!client) {
       return {
@@ -398,7 +406,11 @@ export function BibleStoreProvider({ children }: { children: React.ReactNode }) 
     }
     setAuthBusy(true);
     try {
-      const { data, error } = await client.auth.signUp({ email, password });
+      const { data, error } = await client.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: displayName } },
+      });
       return {
         error: error?.message ?? null,
         confirmationRequired: !error && !data.session,
