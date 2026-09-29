@@ -6,7 +6,7 @@ import ProgressBar from "@/components/progress-bar";
 import { Check, Flame, Trophy, Clock } from "lucide-react";
 
 export default function DashboardPage() {
-  const { state, stats, toggleSlot, totals } = useBibleStore();
+  const { state, stats, toggleSlot, totals, dateForDay } = useBibleStore();
   const todayReading = stats.plan[stats.today - 1];
   const completion = state.completions[stats.today];
   const morningDone = completion?.morning ?? false;
@@ -16,6 +16,38 @@ export default function DashboardPage() {
   const requiredCount = Number(morningRequired) + Number(nightRequired);
   const completedCount =
     Number(morningRequired && morningDone) + Number(nightRequired && nightDone);
+  const catchUpReadings: {
+    day: number;
+    slot: "morning" | "night";
+    title: string;
+    label: string;
+  }[] = [];
+
+  for (let day = 1; day < stats.today; day++) {
+    const reading = stats.plan[day - 1];
+    const dayCompletion = state.completions[day];
+    if (!reading) continue;
+
+    if (reading.morning.length > 0 && !dayCompletion?.morning) {
+      catchUpReadings.push({
+        day,
+        slot: "morning",
+        title: readingLabel(reading.morning),
+        label: state.planId === "custom" ? "Daily reading" : "Morning · New Testament",
+      });
+    }
+    if (reading.night.length > 0 && !dayCompletion?.night) {
+      catchUpReadings.push({
+        day,
+        slot: "night",
+        title: readingLabel(reading.night),
+        label: state.planId === "custom" && reading.morning.length === 0
+          ? "Daily reading"
+          : "Night · Old Testament",
+      });
+    }
+  }
+  const catchUpDayCount = new Set(catchUpReadings.map((reading) => reading.day)).size;
 
   const todayDate = new Date().toLocaleDateString("en-US", {
     weekday: "long",
@@ -50,6 +82,48 @@ export default function DashboardPage() {
         </h1>
         <p className="text-sm text-[var(--ink-soft)] mt-1">Keep your daily rhythm alive.</p>
       </div>
+
+      {catchUpReadings.length > 0 && (
+        <section
+          role="alert"
+          className="rounded-xl border p-4"
+          style={{ background: "#fff8e8", borderColor: "#ead7a5" }}
+        >
+          <h2 className="font-semibold text-ink">Catch up before moving on</h2>
+          <p className="text-sm text-ink-soft mt-1">
+            There is unfinished reading from {catchUpDayCount} previous day{catchUpDayCount === 1 ? "" : "s"}. Read these chapters before continuing with today&rsquo;s assignment.
+          </p>
+          <div className="mt-3 divide-y" style={{ borderColor: "#ead7a5" }}>
+            {catchUpReadings.map((reading) => {
+              const dateLabel = dateForDay(reading.day).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              });
+              return (
+                <div
+                  key={`${reading.day}-${reading.slot}`}
+                  className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                >
+                  <div className="min-w-0">
+                    <div className="text-xs text-ink-faint">
+                      {dateLabel} · {reading.label}
+                    </div>
+                    <div className="text-sm font-medium text-ink">{reading.title}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSlot(reading.day, reading.slot)}
+                    aria-label={`Mark ${reading.title} from ${dateLabel} as complete`}
+                    className="shrink-0 text-xs font-semibold px-3 py-2 rounded-full bg-green text-[#f6f2e9]"
+                  >
+                    Mark read
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <div>
         <div className="flex items-center justify-between mb-3">
