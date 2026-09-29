@@ -30,6 +30,8 @@ export type DayCompletion = {
   night: boolean;
   morningAt?: string;
   nightAt?: string;
+  morningLate?: boolean;
+  nightLate?: boolean;
 };
 
 export type Completions = Record<number, DayCompletion>;
@@ -133,6 +135,13 @@ export function dayStatus(
   return "missed";
 }
 
+function hasLateCompletion(completion: DayCompletion | undefined, reading: DayReading) {
+  return Boolean(
+    (reading.morning.length > 0 && completion?.morning && completion.morningLate) ||
+      (reading.night.length > 0 && completion?.night && completion.nightLate)
+  );
+}
+
 type Stats = {
   today: number;
   plan: DayReading[];
@@ -173,9 +182,10 @@ function computeStats(state: PersistedState): Stats {
   let currentStreak = 0;
   for (let d = today - 1; d >= 1; d--) {
     const c = state.completions[d];
-    const status = dayStatus(d, today, c, plan[d - 1]);
+    const reading = plan[d - 1];
+    const status = dayStatus(d, today, c, reading);
     if (status === "rest") continue;
-    if (status === "completed") currentStreak++;
+    if (status === "completed" && !hasLateCompletion(c, reading)) currentStreak++;
     else break;
   }
 
@@ -184,9 +194,10 @@ function computeStats(state: PersistedState): Stats {
   let run = 0;
   for (let d = 1; d <= planLength; d++) {
     const c = state.completions[d];
-    const status = dayStatus(d, today, c, plan[d - 1]);
+    const reading = plan[d - 1];
+    const status = dayStatus(d, today, c, reading);
     if (status === "rest") continue;
-    if (status === "completed") {
+    if (status === "completed" && !hasLateCompletion(c, reading)) {
       run++;
       longestStreak = Math.max(longestStreak, run);
     } else {
@@ -446,12 +457,18 @@ export function BibleStoreProvider({ children }: { children: React.ReactNode }) 
         hour: "numeric",
         minute: "2-digit",
       });
+      const lateKey = `${slot}Late` as "morningLate" | "nightLate";
+      const planLength = buildPlan(prev.planId, prev.customGoal, prev.chaptersPerDay).length;
+      const completedLate = day < currentDayNumber(prev.startDate, planLength);
       const next: DayCompletion = {
         ...existing,
         [slot]: value,
-        ...(value ? { [`${slot}At`]: time } : {}),
+        ...(value ? { [`${slot}At`]: time, [lateKey]: completedLate } : {}),
       };
-      if (!value) delete next[`${slot}At` as "morningAt" | "nightAt"];
+      if (!value) {
+        delete next[`${slot}At` as "morningAt" | "nightAt"];
+        delete next[lateKey];
+      }
       return {
         ...prev,
         completions: { ...prev.completions, [day]: next },
